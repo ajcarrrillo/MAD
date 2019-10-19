@@ -15,7 +15,6 @@ from queue import Queue, Empty
 import numpy as np
 
 from db.dbWrapperBase import DbWrapperBase
-from utils.data_manager import DataManager
 from geofence.geofenceHelper import GeofenceHelper
 from route.routecalc.ClusteringHelper import ClusteringHelper
 from route.routecalc.calculate_route import getJsonRoute
@@ -46,15 +45,13 @@ class RoutePoolEntry:
 
 
 class RouteManagerBase(ABC):
-    def __init__(self, db_wrapper: DbWrapperBase, dbm: DataManager, uri: str, coords: List[Location], max_radius: float,
+    def __init__(self, db_wrapper: DbWrapperBase, coords: List[Location], max_radius: float,
                  max_coords_within_radius: int, path_to_include_geofence: str, path_to_exclude_geofence: str,
                  routefile: str, mode=None, init: bool = False, name: str = "unknown", settings: dict = None,
                  level: bool = False, calctype: str = "optimized", joinqueue = None):
         self.db_wrapper: DbWrapperBase = db_wrapper
         self.init: bool = init
         self.name: str = name
-        self._data_manager = dbm
-        self._uri = uri
         self._coords_unstructured: List[Location] = coords
         self.geofence_helper: GeofenceHelper = GeofenceHelper(
             path_to_include_geofence, path_to_exclude_geofence)
@@ -506,8 +503,7 @@ class RouteManagerBase(ABC):
             logger.debug(
                 "{}: Checking if a location is available...", str(self.name))
             with self._manager_mutex:
-                got_location = self._prio_queue is not None and (len(self._prio_queue) > 0 and
-                                                                 self._prio_queue[0][0] < time.time())
+                got_location = self._prio_queue is not None and len(self._prio_queue) > 0 or self.mode != 'iv_mitm'
                 if not got_location: time.sleep(1)
 
         logger.debug(
@@ -894,10 +890,15 @@ class RouteManagerBase(ABC):
             #   remove the coords of that coord onward)
 
     def change_init_mapping(self, name_area: str):
-        update = {
-            'init': False
-        }
-        self._data_manager.set_data(update, self._uri, 'patch')
+        with open(args.mappings) as f:
+            vars = json.load(f)
+
+        for var in vars['areas']:
+            if (var['name']) == name_area:
+                var['init'] = bool(False)
+
+        with open(args.mappings, 'w') as outfile:
+            json.dump(vars, outfile, indent=4, sort_keys=True)
 
     def get_route_status(self, origin) -> Tuple[int, int]:
         if self._route and origin in self._routepool:

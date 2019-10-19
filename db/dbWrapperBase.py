@@ -486,9 +486,11 @@ class DbWrapperBase(ABC):
                             spawnid, lat, lng, earliest_unseen, last_scanned, newspawndef, calcendtime
                         )
                     )
+
                 else:
                     earliest_unseen = 99999999
                     last_non_scanned = now
+                    calcendtime = None
 
                     spawnpoint_args_unseen.append(
                         (
@@ -1020,7 +1022,7 @@ class DbWrapperBase(ABC):
         )
 
         result = self.execute(query)
-        for (origin, currentPos, lastPos, routePos, routeMax, routemanager_id,
+        for (origin, currentPos, lastPos, routePos, routeMax, routemanager,
                 rebootCounter, lastProtoDateTime, lastPogoRestart, init, rebootingOption, restartCounter,
                 globalrebootcount, globalrestartcount, lastPogoReboot, currentSleepTime) in result:
             status = {
@@ -1029,7 +1031,7 @@ class DbWrapperBase(ABC):
                 "lastPos": lastPos,
                 "routePos": routePos,
                 "routeMax": routeMax,
-                "routemanager_id": routemanager_id,
+                "routemanager": routemanager,
                 "rebootCounter": rebootCounter,
                 "lastProtoDateTime": str(lastProtoDateTime) if lastProtoDateTime is not None else None,
                 "lastPogoRestart": str(lastPogoRestart) if lastPogoRestart is not None else None,
@@ -1045,7 +1047,7 @@ class DbWrapperBase(ABC):
 
             workerstatus.append(status)
 
-        return workerstatus
+        return str(json.dumps(workerstatus, indent=4, sort_keys=True))
 
     def statistics_get_quests_count(self, days):
         logger.debug('Fetching quests count from db')
@@ -1406,3 +1408,4 @@ class DbWrapperBase(ABC):
         query = "UPDATE trs_status SET routemanager = 'idle' WHERE origin = '" + origin + "'"
         logger.debug(query)
         self.execute(query, commit=True)
+
